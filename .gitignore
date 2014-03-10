@@ -12,6 +12,8 @@
 *.la
 *.a
 
+*/bin/
+
 # CMake stuff
 */CMakeFiles/
 CMakeCache.txt
