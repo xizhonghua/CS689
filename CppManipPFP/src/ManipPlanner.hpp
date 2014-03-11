@@ -3,6 +3,9 @@
 
 #include "ManipSimulator.hpp"
 
+#include <vector>
+using namespace std;
+
 class ManipPlanner
 {
 public:
@@ -36,8 +39,20 @@ public:
     void ConfigurationMove(double allLinksDeltaTheta[]);
     
         
-protected:    
+protected:
+
+    // compute the Jacobian for a control_point at cfg q
+    vector<vector<double> > ComputeJacobian(const Vector3& q, const Vector2& control_point);
+
+    // get transpose of Jocabian
+    vector<vector<double> > TransposeJacobian(const vector<vector<double> >& jacobian);
+
+    // apply the JacobianTranspose to a control point
+    Vector3 ApplyJacobianTranspose(const vector<vector<double> >& jacobian_t, Vector2 p);
     
+    // get end points of the link
+    vector<Vector2> GetLinkEndPoints(void);
+
     ManipSimulator  *m_manipSimulator;
 };
 
