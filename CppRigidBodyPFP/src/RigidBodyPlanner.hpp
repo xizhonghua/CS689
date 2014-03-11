@@ -40,11 +40,16 @@ protected:
 
     vector<Vector2> GetRobotVertices(void);
 
-	vector<vector<double> > ComputeJacobian(const Vector3& q, const Vector2& p);
+
+    // compute the Jacobian for a control_point at cfg q
+	vector<vector<double> > ComputeJacobian(const Vector3& q, const Vector2& control_point);
+
+	// get transpose of Jocabian
 	vector<vector<double> > TransposeJacobian(const vector<vector<double> >& jacobian);
 
 	// return v (3*1) = j_t (3*2) * p (2*1)
 	Vector3 ApplyJacobianTranspose(const vector<vector<double> >& jacobian_t, Vector2 p);
+
 
 	void GetInitalCoordinates(void);
 

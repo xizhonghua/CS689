@@ -13,6 +13,8 @@
 *.a
 
 */bin/
+.project
+.cproject
 
 # CMake stuff
 */CMakeFiles/

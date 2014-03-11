@@ -3,13 +3,13 @@
 using namespace std;
 #include "RigidBodyPlanner.hpp"
 
-const double FarAway = 1;
-const double RepScaleFactor = 0.5;
+const double FarAway = 2.0;
+const double RepScaleFactor = 0.2;
 const double RepThreshold = 0.1;
 const double AttrScaleFactor = 0.002;
 const double PosScale = 0.8;
-const double StuckMoved = 0.2;
-const double VirtualGoalFactor = 100;
+const double StuckMoved = 0.3;
+const double VirtualGoalFactor = 20;
 
 
 Vector2 operator*(const Vector2& lhs, double scale)
@@ -20,6 +20,12 @@ Vector2 operator*(const Vector2& lhs, double scale)
 Vector2 operator*(double scale, const Vector2& rhs)
 {
 	return rhs*scale;
+}
+
+Vector2 operator/(const Vector2& lhs, double scale)
+{
+	if(scale == 0) return Vector2();
+	return 1.0/scale*lhs;
 }
 
 double operator*(const Vector2& lhs, const Vector2& rhs)
@@ -93,13 +99,13 @@ vector<vector<double> > RigidBodyPlanner::TransposeJacobian(const vector<vector<
 	return j_t;
 }
 
-vector<vector<double> > RigidBodyPlanner::ComputeJacobian(const Vector3& q, const Vector2& p)
+vector<vector<double> > RigidBodyPlanner::ComputeJacobian(const Vector3& q, const Vector2& control_point)
 {
 	// x' = x_j * cos(theta) - y_j * sin(theta) + x
 	// y' = x_j * sin(theta) + y_j * cos(theta) + y
 	vector<double> J1,J2;
-	J1.push_back(1);J1.push_back(0);J1.push_back(p.x * -sin(q.z) - p.y * cos(q.z));
-	J2.push_back(0);J2.push_back(1);J2.push_back(p.x * cos(q.z) - p.y * sin(q.z));
+	J1.push_back(1);J1.push_back(0);J1.push_back(control_point.x * -sin(q.z) - control_point.y * cos(q.z));
+	J2.push_back(0);J2.push_back(1);J2.push_back(control_point.x * cos(q.z) - control_point.y * sin(q.z));
 
 	vector<vector<double> > J;
 	J.push_back(J1);
@@ -183,13 +189,16 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
     // loop all control points
     for(size_t j=0;j<vs.size();++j)
     {
+    	// control point p
     	const Vector2& p = vs[j];
 
     	// compute Jacobian & its transpose as J' for control point j at q
     	vector<vector<double> > jacobian_t = this->TransposeJacobian(this->ComputeJacobian(q, this->m_coords[j]));
 
-    	// compute the attraction
-    	Vector2 u_att = (g - p) * AttrScaleFactor;
+    	// compute the gradient of the attraction
+    	// U_Att = 1/2 * factor * |p - g| ^ 2
+    	// U_Att' = factor*(p - g)
+    	Vector2 u_att = (p - g) * AttrScaleFactor;
 
     	// add attract to the configuration space gradient
     	csg_attr = csg_attr + this->ApplyJacobianTranspose(jacobian_t, u_att);
@@ -206,7 +215,7 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
     		if ( dis > FarAway ) continue;
 
     		// compute the workspace gradient
-    		Vector2 u_rep = (p - cp) * (RepScaleFactor / dis);
+    		Vector2 u_rep = RepScaleFactor* ((cp - p)  / (dis * dis));
 
     		//u_rep = u_rep * (drand48() * 10 + 0.5);
 
@@ -222,19 +231,26 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
 
 	// get stuck due to local minimal
 	if(moved.Normal() < StuckMoved && csg_rep.toVector2().Normal() > RepThreshold) {
-		// add a virtual goal that is VirtualGoalFactor times away from robot in the opposite direction to the goal
-		Vector2 u_att2 = (q.toVector2() - g).GetPerpendicular()*VirtualGoalFactor*AttrScaleFactor;
-		vector<vector<double> > jacobian_t = this->TransposeJacobian(this->ComputeJacobian(q, this->m_com));
-		// get the attract csg with some random factor
-		Vector3 csg_attr2 = this->ApplyJacobianTranspose(jacobian_t, u_att2) * drand48();
-		// add to the csg
-		csg = csg + csg_attr2;
+
+		for(size_t j=0;j<vs.size();++j)
+		{
+			// control point p
+			const Vector2& p = vs[j];
+
+			// add a virtual goal that is VirtualGoalFactor times away from robot in the opposite direction to the goal
+			Vector2 u_att2 = (g - p).GetPerpendicular()*VirtualGoalFactor*AttrScaleFactor;
+			vector<vector<double> > jacobian_t = this->TransposeJacobian(this->ComputeJacobian(q, p));
+			// get the attract csg with some random factor
+			Vector3 csg_attr2 = this->ApplyJacobianTranspose(jacobian_t, u_att2) * drand48();
+			// add to the csg
+			csg = csg + csg_attr2;
+		}
 	}
 
     RigidBodyMove move;
-    move.m_dx = csg.x;
-    move.m_dy = csg.y;
-    move.m_dtheta = csg.z;
+    move.m_dx = -csg.x;
+    move.m_dy = -csg.y;
+    move.m_dtheta = -csg.z;
 
     return move;
 }

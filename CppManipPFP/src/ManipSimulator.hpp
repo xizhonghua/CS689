@@ -6,11 +6,77 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include <cassert>
 
 struct Point
 {
     double m_x;
     double m_y;    
+};
+
+struct Vector2
+{
+	double x;
+	double y;
+
+	Vector2() : x(0), y(0) {}
+	Vector2(double x, double y): x(x), y(y) {}
+	Vector2(const Vector2& v) : x(v.x), y(v.y) {}
+
+	double Normal()
+	{
+		return sqrt(x*x + y*y);
+	}
+
+	Vector2 Normalize()
+	{
+		double n = this->Normal();
+		if(n == 0) return Vector2();
+
+		return Vector2(x/n, y/n);
+	}
+
+	Vector2 GetPerpendicular()
+	{
+		return Vector2(-y, x);
+	}
+
+	double& operator[] (const int index) {
+		if(index == 0) return x;
+		if(index == 1) return y;
+		assert(false);
+	}
+};
+
+struct Vector3
+{
+	double x,y,z;
+
+	Vector3() : x(0), y(0), z(0) {}
+	Vector3(double x, double y, double z): x(x), y(y), z(z) {}
+	Vector3(const Vector3& v) : x(v.x), y(v.y), z(v.z) {}
+
+	double Normal()
+	{
+		return sqrt(x*x + y*y + z*z);
+	}
+
+	Vector3 Normalize()
+	{
+		double n = this->Normal();
+		if(n == 0) return Vector3();
+
+		return Vector3(x/n, y/n, z/n);
+	}
+
+	double& operator[] (const int index) {
+		if(index == 0) return x;
+		if(index == 1) return y;
+		if(index == 2) return z;
+		assert(false);
+	}
+
+	Vector2 toVector2() const { return Vector2(x,y); }
 };
     
 
