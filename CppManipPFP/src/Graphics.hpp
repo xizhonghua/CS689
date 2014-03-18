@@ -42,6 +42,7 @@ protected:
     int  m_selectedCircle;
     bool m_editRadius;
     bool m_run;
+    bool m_run_one_step;
     
     std::vector<double> m_dthetas;
     

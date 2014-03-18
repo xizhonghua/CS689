@@ -3,6 +3,10 @@
 #include <iostream>
 using namespace std;
 
+const double FarAway = 1.0;
+const double RepScaleFactor = 0.005;
+const double AttrScaleFactor = 0.0001;
+
 // ======================================================================
 Vector2 operator*(const Vector2& lhs, double scale)
 {
@@ -12,6 +16,12 @@ Vector2 operator*(const Vector2& lhs, double scale)
 Vector2 operator*(double scale, const Vector2& rhs)
 {
 	return rhs*scale;
+}
+
+Vector2 operator/(const Vector2& lhs, double scale)
+{
+	if(scale == 0) return Vector2();
+	return 1.0/scale*lhs;
 }
 
 double operator*(const Vector2& lhs, const Vector2& rhs)
@@ -80,10 +90,109 @@ vector<Vector2> ManipPlanner::GetLinkEndPoints(void)
 	return end_points;
 }
 
+vector<double> ManipPlanner::Add(const vector<double>& lhs, const vector<double>& rhs)
+{
+	assert(lhs.size() == rhs.size());
+	vector<double> out = lhs;
+	for(size_t i=0;i<rhs.size();++i)
+		out[i]+=rhs[i];
+	return out;
+}
+
+vector<vector<double> > ManipPlanner::ComputeJacobianT(const int j)
+{
+	const int n = this->m_manipSimulator->GetNrLinks();
+	vector<vector<double> > J;
+	J.resize(n);
+
+	for(int i=0;i<=j;i++)
+	{
+		double x = - this->m_manipSimulator->GetLinkEndY(j) + this->m_manipSimulator->GetLinkStartY(i);
+		double y = this->m_manipSimulator->GetLinkEndX(j) - this->m_manipSimulator->GetLinkStartX(i);
+
+		J[i].push_back(x);
+		J[i].push_back(y);
+	}
+
+	for(int i=j+1;i<n;i++)
+	{
+		J[i].push_back(0);
+		J[i].push_back(0);
+	}
+
+	return J;
+}
+
+vector<double> ManipPlanner::ApplyJacobianTranspose(const vector<vector<double> >& jacobian_t, const Vector2& U)
+{
+	vector<double> out;
+
+	for(size_t i=0;i<jacobian_t.size();++i)
+	{
+		out.push_back(jacobian_t[i][0] * U.x + jacobian_t[i][1] * U.y);
+	}
+
+	return out;
+}
+
 void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
 {
-   vector<Vector2> end_points = this->GetLinkEndPoints();
+	const int nrLinks = this->m_manipSimulator->GetNrLinks();
+	const int nrObsts = this->m_manipSimulator->GetNrObstacles();
 
-   const Vector2 end_point = end_points.back();
+	vector<Vector2> end_points = this->GetLinkEndPoints();
+
+	// last point on the link
+	const Vector2 last_point = end_points.back();
+
+	const Vector2 goal = Vector2(this->m_manipSimulator->GetGoalCenterX(), this->m_manipSimulator->GetGoalCenterY());
+
+	vector<double> csg_att(nrLinks);
+	vector<double> csg_rep(nrLinks);
+
+	// loop each control points
+	for(size_t j=0;j<nrLinks;j++)
+	{
+		// control point p
+		const Vector2& p = end_points[j];
+
+		// compute transpose of the Jacobian
+		vector<vector<double> > J_T = this->ComputeJacobianT(j);
+
+		// loop each obstacles
+		for(int i=0;i<nrObsts;i++)
+		{
+			// get the closest point from p to obst_o
+			Vector2 closest_point = this->m_manipSimulator->ClosestPointOnObstacle(i, p.x, p.y);
+
+			// distance from control point to closest point on obst_o
+			double dis = (closest_point - p).Normal();
+
+			// obstacle is far away from current control point, just ignore it
+			if(dis > FarAway) continue;
+
+			// W-space repulsive gradient
+			Vector2 u_rep_j_i = RepScaleFactor * ((closest_point - p) / (dis*dis));
+
+			// compute C-space repulsive gradient;
+			vector<double> csg_rep_j_i = this->ApplyJacobianTranspose(J_T, u_rep_j_i);
+
+			// add it up
+			csg_rep = this->Add(csg_rep, csg_rep_j_i);
+		}
+	}
+
+	// compute transpose of the Jacobian for the last point on the link
+	vector<vector<double> > J_T = this->ComputeJacobianT(nrLinks-1);
+
+	// compute the C-space attracive gradient
+	csg_att = this->ApplyJacobianTranspose(J_T,  AttrScaleFactor * (last_point - goal));
+
+	// add attr & rep
+	vector<double> sum = this->Add(csg_att, csg_rep);
+
+	// output
+	for(size_t i=0;i<sum.size();++i)
+		allLinksDeltaTheta[i] = -sum[i];
 }
 

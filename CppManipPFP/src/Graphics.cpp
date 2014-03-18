@@ -22,6 +22,7 @@ Graphics::Graphics(const int nrLinks, const double linkLength)
     m_selectedCircle = -1;
     m_editRadius     = false;
     m_run = false;
+    m_run_one_step = false;
     
 }
 
@@ -59,12 +60,13 @@ void Graphics::MainLoop(void)
 
 void Graphics::HandleEventOnTimer(void)
 {
-    if(m_run && !m_simulator.HasRobotReachedGoal())
+    if((m_run || m_run_one_step) && !m_simulator.HasRobotReachedGoal())
     {
 	m_planner->ConfigurationMove(&(m_dthetas[0]));
 	for(int i = 0; i < m_simulator.GetNrLinks(); ++i)
 	    m_simulator.AddToLinkTheta(i, m_dthetas[i]);
 	m_simulator.FK();
+	m_run_one_step = false;
     }
 } 
 
@@ -124,7 +126,13 @@ void Graphics::HandleEventOnKeyPress(const int key)
 	m_editRadius = !m_editRadius;
 	break;
 	
-	
+    case ',':
+    	m_run_one_step = true;
+    	break;
+    case 's':
+    	m_simulator.RestLinks();
+    	break;
+
     case 'p':
 	m_run = !m_run;
 	break;

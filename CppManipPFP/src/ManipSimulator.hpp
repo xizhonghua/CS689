@@ -105,7 +105,7 @@ public:
     /**
      *@brief Returns closest point on the i-th circle obstacle to point [x, y]
      */
-    Point ClosestPointOnObstacle(const int i, const double x, const double y);
+    Vector2 ClosestPointOnObstacle(const int i, const double x, const double y);
 
     int GetNrLinks(void) const
     {
@@ -134,6 +134,8 @@ public:
 
     bool HasRobotReachedGoal(void) const;
     
+    // reset links to initial status;
+    void RestLinks();
 protected:
 
     double GetObstacleCenterX(const int i) const

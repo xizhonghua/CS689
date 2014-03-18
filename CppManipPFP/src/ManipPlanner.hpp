@@ -41,15 +41,15 @@ public:
         
 protected:
 
-    // compute the Jacobian for a control_point at cfg q
-    vector<vector<double> > ComputeJacobian(const Vector3& q, const Vector2& control_point);
+    // compute Jacobian^T for the j-th control_point at current cfg
+    vector<vector<double> > ComputeJacobianT(const int j);
 
-    // get transpose of Jocabian
-    vector<vector<double> > TransposeJacobian(const vector<vector<double> >& jacobian);
-
-    // apply the JacobianTranspose to a control point
-    Vector3 ApplyJacobianTranspose(const vector<vector<double> >& jacobian_t, Vector2 p);
+    // apply the JacobianTranspose to a work space gradient
+    vector<double> ApplyJacobianTranspose(const vector<vector<double> >& jacobian_t, const Vector2& U);
     
+    // add two vector
+    vector<double> Add(const vector<double>& lhs, const vector<double>& rhs);
+
     // get end points of the link
     vector<Vector2> GetLinkEndPoints(void);
 

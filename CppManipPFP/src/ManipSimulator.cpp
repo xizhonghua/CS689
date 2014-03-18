@@ -31,17 +31,17 @@ void ManipSimulator::AddLink(const double length)
     m_positions.resize(m_positions.size() + 2);	
 }
 
-Point ManipSimulator::ClosestPointOnObstacle(const int i, const double x, const double y)
+Vector2 ManipSimulator::ClosestPointOnObstacle(const int i, const double x, const double y)
 {
     const double cx = GetObstacleCenterX(i);
     const double cy = GetObstacleCenterY(i);
     const double r  = GetObstacleRadius(i);
     const double d  = sqrt((cx - x) * (cx - x) + (cy - y) * (cy - y));
 
-    Point p;
+    Vector2 p;
     
-    p.m_x = cx + r * (x - cx) / d;
-    p.m_y = cy + r * (y - cy) / d;
+    p.x = cx + r * (x - cx) / d;
+    p.y = cy + r * (y - cy) / d;
 
     return p;
     
@@ -95,3 +95,10 @@ void ManipSimulator::FK(void)
     }
 }
 
+void ManipSimulator::RestLinks()
+{
+	 const int n = GetNrLinks();
+	 for(int i=0;i<n;i++)
+		 m_joints[i] = 0;
+	 this->FK();
+}
