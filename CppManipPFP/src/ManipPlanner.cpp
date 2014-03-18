@@ -3,7 +3,7 @@
 #include <iostream>
 using namespace std;
 
-const double FarAway = 1.0;
+const double FarAway = 0.8;
 const double RepScaleFactor = 0.005;
 const double AttrScaleFactor = 0.0001;
 
@@ -150,7 +150,7 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
 	vector<double> csg_att(nrLinks);
 	vector<double> csg_rep(nrLinks);
 
-	// loop each control points
+	// loop each control point
 	for(size_t j=0;j<nrLinks;j++)
 	{
 		// control point p
@@ -185,7 +185,7 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
 	// compute transpose of the Jacobian for the last point on the link
 	vector<vector<double> > J_T = this->ComputeJacobianT(nrLinks-1);
 
-	// compute the C-space attracive gradient
+	// compute the C-space attractive gradient
 	csg_att = this->ApplyJacobianTranspose(J_T,  AttrScaleFactor * (last_point - goal));
 
 	// add attr & rep
