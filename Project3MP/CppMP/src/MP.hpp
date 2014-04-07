@@ -15,14 +15,14 @@ struct Vertex
 	    TYPE_GOAL = 2
 	};
 	
+    int	   m_vid;
     int    m_parent;
     double m_state[Simulator::STATE_NR_DIMS];
     int    m_type;
     int    m_nchildren;
-    
+    int	   m_neighbor;
     double weight() {
-    	double w = 2.0/(1+exp(1*m_nchildren));
-    	return w;
+    	return 2.0/(1+exp(2*m_neighbor));
     }
 };
 
@@ -43,28 +43,32 @@ public:
 
     void ExtendMyApproach(void);
     
+    double GettotalSolveTime() const { return m_totalSolveTime; }
+
+    int GetTotalVertices() const { return m_vertices.size(); }
+
+    bool IsProblemSolved(void) { return m_vidAtGoal >= 0; }
         
 protected:
-    bool IsProblemSolved(void)
-    {
-	return m_vidAtGoal >= 0;
-    }
 
     void GetPathFromInitToGoal(std::vector<int> *path) const;
 
     void AddVertex(Vertex * const v);
 
-    void ExtendTree(const int    vid,
-		    const double sto[]);
+    void GetGrid(Vertex* const v, int& x, int& y);
+
+    Vertex* ExtendTree(const int    vid,
+		    const double sto[], int max_steps = 0);
     
     void RandomConfig(double cfg[]);
 
     double Dist(const double* st1, const double* st2);
 
-    Simulator            *m_simulator;
-    std::vector<Vertex *> m_vertices;
-    int                   m_vidAtGoal;
-    double                m_totalSolveTime;
+    Simulator            	*m_simulator;
+    std::vector<Vertex *>	m_vertices;
+    int                   	m_vidAtGoal;
+    double                	m_totalSolveTime;
+    vector<vector<int> >	m_grids;
 
     
     friend class Graphics;    

@@ -6,10 +6,17 @@
 using namespace std;
 
 const double P = 0.1;
+const int NUM_GRIDS = 50;
 
 MotionPlanner::MotionPlanner(Simulator * const simulator)
 {
     m_simulator = simulator;   
+
+    for(int i=0;i<NUM_GRIDS;i++)
+	{
+		vector<int> grid(NUM_GRIDS);
+		this->m_grids.push_back(grid);
+	}
 
     Vertex *vinit = new Vertex();
 
@@ -21,6 +28,8 @@ MotionPlanner::MotionPlanner(Simulator * const simulator)
     AddVertex(vinit);
     m_vidAtGoal = -1;
     m_totalSolveTime = 0;
+
+
 }
 
 MotionPlanner::~MotionPlanner(void)
@@ -37,8 +46,8 @@ double MotionPlanner::Dist(const double* st1, const double* st2)
 	return sqrt((st1[0]-st2[0])*(st1[0]-st2[0]) + (st1[1]-st2[1])*(st1[1]-st2[1]));
 }
 
-void MotionPlanner::ExtendTree(const int    vid, 
-			       const double sto[])
+Vertex* MotionPlanner::ExtendTree(const int    vid,
+			       const double sto[], int max_steps)
 {
 	// get the vertex to expend from
 	Vertex* v = m_vertices[vid];
@@ -51,15 +60,21 @@ void MotionPlanner::ExtendTree(const int    vid,
 	// compute max steps
 	int steps = dist / res;
 
+	Vertex * last_added = NULL;
+
 	if(steps == 0) {
-		cout<<"too near to expend... dist = "<<dist<<endl;
-		return;
+		return NULL;
 	}
 
 	// forwarding vector
 	double ss[2] = { diff[0]/steps, diff[1]/steps };
 	// goal
 	double gs[2] = { this->m_simulator->GetGoalCenterX(), this->m_simulator->GetGoalCenterY() };
+
+	if(max_steps!=0)
+	{
+		steps = std::min(steps, max_steps);
+	}
 
 	for(int i=1;i<=steps;i++)
 	{
@@ -89,13 +104,17 @@ void MotionPlanner::ExtendTree(const int    vid,
 
 			// add to tree
 			this->AddVertex(nv);
+
+			last_added = nv;
 		}
 		else
 		{
 			// hit obstacle return
-			break;
+			return last_added;
 		}
 	}
+
+	return NULL;
 }
 
 void MotionPlanner::RandomConfig(double cfg[])
@@ -179,22 +198,31 @@ void MotionPlanner::ExtendEST(void)
 	double total_weight = 0;
 	int size = this->m_vertices.size();
 
+	const double delta = 2*this->m_simulator->GetDistOneStep();
+
+	// count neighbors
 	for(int i=0;i<size;++i)
 	{
 		Vertex* v = this->m_vertices[i];
+		int x,y;
+		this->GetGrid(v, x, y);
+		v->m_neighbor = this->m_grids[y][x];
 		total_weight += v->weight();
 	}
 
-	//cout<<"tw = "<<total_weight<<" w = "<<w<<endl;
-	for(int i=0;i<size;++i)
+	double w = PseudoRandomUniformReal() * total_weight;
+	// in reverse order, newly added nodes have more probability to be selected
+	for(int i=size-1;i>=0;i--)
 	{
 		Vertex* v = this->m_vertices[i];
-		if( v->weight() >= PseudoRandomUniformReal() * total_weight)
+		if( v->weight() >= w)
 		{
 			selected = v;
 			vid = i;
 			break;
 		}
+
+		w -= v->weight();
 	}
 
 	if(selected)
@@ -211,20 +239,70 @@ void MotionPlanner::ExtendMyApproach(void)
     Clock clk;
     StartTime(&clk);
  
-//your code
+    // generate a random config
+	double sto[2];
+	this->RandomConfig(sto);
+
+	double min_dist = 1e10;
+	Vertex* closest = NULL;
+	int vid = -1;
+
+	// find the closest vertex in the tree
+	for(int i=0, size = this->m_vertices.size();i<size;++i)
+	{
+		Vertex* v = this->m_vertices[i];
+		double dist = this->Dist(sto, v->m_state);
+		if(dist < min_dist)
+		{
+			min_dist = dist;
+			closest = v;
+			vid = i;
+		}
+	}
+
+	if(closest)
+	{
+		Vertex* last_added = this->ExtendTree(vid, sto, 10);
+
+		if(last_added && m_vidAtGoal < 0)
+		{
+			double v1[2] = {last_added->m_state[0] - closest->m_state[0], last_added->m_state[1] - closest->m_state[1]};
+			double v2[2] = {-v1[1]*1000, v1[0]*1000};
+			double d1[2] = {last_added->m_state[0] + v2[0], last_added->m_state[1] + v2[1]};
+			double d2[2] = {last_added->m_state[0] - v2[0], last_added->m_state[1] - v2[1]};
+
+			this->ExtendTree(last_added->m_vid, d1, 2);
+			this->ExtendTree(last_added->m_vid, d2, 2);
+		}
+	}
     
     m_totalSolveTime += ElapsedTime(&clk);
 }
 
+void MotionPlanner::GetGrid(Vertex* const v, int& x, int& y)
+{
+	const double* bbox = m_simulator->GetBoundingBox();
+
+	x = (v->m_state[0] - bbox[0]) / (bbox[2] - bbox[0]) * NUM_GRIDS;
+	y = (v->m_state[1] - bbox[1]) / (bbox[3] - bbox[1]) * NUM_GRIDS;
+}
 
 void MotionPlanner::AddVertex(Vertex * const v)
 {
     if(v->m_type == Vertex::TYPE_GOAL)
     	m_vidAtGoal = m_vertices.size();
 
+    v->m_vid = this->m_vertices.size();
+
     m_vertices.push_back(v); 
     if(v->m_parent >= 0)
 	(++m_vertices[v->m_parent]->m_nchildren);
+
+    int x,y;
+
+    this->GetGrid(v, x, y);
+
+    this->m_grids[y][x]++;
 }
 
 void MotionPlanner::GetPathFromInitToGoal(std::vector<int> *path) const

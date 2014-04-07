@@ -331,20 +331,76 @@ void Graphics::MousePosition(const int x, const int y, double *posX, double *pos
     gluUnProject(winX, winY, winZ, modelview, projection, viewport, posX, posY, &posZ);
 }
 
+void RunExp(string filename, int method)
+{
+	Simulator s;
+	s.SetupFromFile(filename.c_str());
+	MotionPlanner* p;
+	p = new MotionPlanner(&s);
+
+	double last_solve_time = 0.0;
+
+	while( p->GettotalSolveTime() < 10 && !p->IsProblemSolved())
+	{
+		if(method == 1)      p->ExtendRandom();
+		else if(method == 2) p->ExtendRRT();
+		else if(method == 3) p->ExtendEST();
+		else if(method == 4) p->ExtendMyApproach();
+
+		if(p->GettotalSolveTime() - last_solve_time > 0.5)
+		{
+			last_solve_time = p->GettotalSolveTime();
+
+			fprintf(stderr, "TotalSolveTime = %f [ Solved = %d ] [ NrVertices = %d ]\n",
+					   p->GettotalSolveTime(), p->IsProblemSolved(), p->GetTotalVertices());
+		}
+	}
+
+	printf("TotalSolveTime = %f [ Solved = %d ] [ NrVertices = %d ]\n",
+		   p->GettotalSolveTime(), p->IsProblemSolved(), p->GetTotalVertices());
+
+	delete p;
+}
 int main(int argc, char **argv)
 {
     PseudoRandomSeed();
     
     if(argc < 2)
     {
-	printf("missing arguments\n");		
-	printf("  Planner <file>\n");
-	return 0;		
+    	printf("missing arguments\n");
+    	printf("  Planner <file> [-m method]\n");
+    	return 0;
+    }
+    
+    bool exp_mode = false;
+    int method = -1;
+    int repetition = 30;
+
+    if(argc == 2)
+    {
+    	Graphics graphics(argv[1]);
+
+    	graphics.MainLoop();
+    }
+    else if(string(argv[2]) == "-m")
+    {
+    	exp_mode = true;
+    	method = atoi(argv[3]);
+    }
+    else
+    {
+    	printf("unknown args %s\n", argv[2]);
+    	return -1;
+    }
+    
+    if(exp_mode)
+    {
+    	for(int i=0;i<repetition;i++)
+    	{
+    		PseudoRandomSeed();
+    		RunExp(argv[1], method);
+    	}
     }
 
-    Graphics graphics(argv[1]);
-    
-    graphics.MainLoop();
-    
     return 0;    
 }

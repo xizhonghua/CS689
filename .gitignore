@@ -12,12 +12,12 @@
 *.la
 *.a
 
-*/bin/
-.project
-.cproject
+**/bin/
+**.project
+**.cproject
 
 # CMake stuff
-*/CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
+**CMakeFiles
+**CMakeCache.txt
+**cmake_install.cmake
+**Makefile
