@@ -1,7 +1,7 @@
 #!/bin/bash
-for s in 1 2 3 4 5
+for s in 1 2 3 4 5 6
 do
-    for m in 1 2 3 4
+    for m in 3
     do
         logfile="m$m-$s.log"
         tmp=$logfile.tmp

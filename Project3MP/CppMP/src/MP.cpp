@@ -18,6 +18,20 @@ MotionPlanner::MotionPlanner(Simulator * const simulator)
 		this->m_grids.push_back(grid);
 	}
 
+    const double* bbox = m_simulator->GetBoundingBox();
+    double max_length = sqrt((bbox[2] - bbox[0])*(bbox[2] - bbox[0]) + (bbox[3] - bbox[1])*(bbox[3] - bbox[1]));
+
+    // 10 %
+    double const max_movement = 0.2;
+    double const max_movement2 = 0.1;
+
+    this->m_max_steps = max_length * max_movement / this->m_simulator->GetDistOneStep();
+
+    // 20 % of max_steps
+    this->m_max_steps2 = std::max(1, (int)(max_movement2 * max_length * max_movement / this->m_simulator->GetDistOneStep()));
+
+    printf("m_max_steps = %d m_max_steps2 = %d\n", m_max_steps, m_max_steps2);
+
     Vertex *vinit = new Vertex();
 
     vinit->m_parent   = -1;   
@@ -28,6 +42,7 @@ MotionPlanner::MotionPlanner(Simulator * const simulator)
     AddVertex(vinit);
     m_vidAtGoal = -1;
     m_totalSolveTime = 0;
+
 
 
 }
@@ -189,9 +204,6 @@ void MotionPlanner::ExtendEST(void)
     Clock clk;
     StartTime(&clk);
 
-    // generate a random config
-    double sto[2];
-	this->RandomConfig(sto);
 
 	Vertex* selected = NULL;
 	int vid = -1;
@@ -227,6 +239,17 @@ void MotionPlanner::ExtendEST(void)
 
 	if(selected)
 	{
+	    // generate a random config
+	    double sto[2];
+
+	    while(true)
+	    {
+	    	this->RandomConfig(sto);
+	    	// q_rand should near to selected
+	    	if(this->Dist(sto, selected->m_state) < 20 * this->m_simulator->GetDistOneStep()) break;
+	    }
+
+
 		this->ExtendTree(vid, sto);
 	}
 
@@ -262,7 +285,7 @@ void MotionPlanner::ExtendMyApproach(void)
 
 	if(closest)
 	{
-		Vertex* last_added = this->ExtendTree(vid, sto, 10);
+		Vertex* last_added = this->ExtendTree(vid, sto, this->m_max_steps);
 
 		if(last_added && m_vidAtGoal < 0)
 		{
@@ -271,8 +294,8 @@ void MotionPlanner::ExtendMyApproach(void)
 			double d1[2] = {last_added->m_state[0] + v2[0], last_added->m_state[1] + v2[1]};
 			double d2[2] = {last_added->m_state[0] - v2[0], last_added->m_state[1] - v2[1]};
 
-			this->ExtendTree(last_added->m_vid, d1, 2);
-			this->ExtendTree(last_added->m_vid, d2, 2);
+			this->ExtendTree(last_added->m_vid, d1, m_max_steps2);
+			this->ExtendTree(last_added->m_vid, d2, m_max_steps2);
 		}
 	}
     

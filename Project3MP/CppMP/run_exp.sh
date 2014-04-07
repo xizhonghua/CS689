@@ -1,9 +1,8 @@
 #!/bin/bash
-rm *.log
-for s in 1 2 3 4 5
+for s in 1 2 3 4 5 6
 do
     echo "Scene $s"
-    for m in 1 2 3 4
+    for m in 3
     do
         echo "Method $m"
         logfile="m$m-$s.log"

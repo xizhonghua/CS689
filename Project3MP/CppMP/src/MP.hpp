@@ -69,7 +69,8 @@ protected:
     int                   	m_vidAtGoal;
     double                	m_totalSolveTime;
     vector<vector<int> >	m_grids;
-
+    int						m_max_steps;
+    int						m_max_steps2;
     
     friend class Graphics;    
 };

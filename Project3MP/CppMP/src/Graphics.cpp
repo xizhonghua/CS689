@@ -340,7 +340,7 @@ void RunExp(string filename, int method)
 
 	double last_solve_time = 0.0;
 
-	while( p->GettotalSolveTime() < 10 && !p->IsProblemSolved())
+	while( p->GettotalSolveTime() < 30 && !p->IsProblemSolved())
 	{
 		if(method == 1)      p->ExtendRandom();
 		else if(method == 2) p->ExtendRRT();
